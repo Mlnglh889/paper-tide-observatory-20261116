@@ -16,7 +16,22 @@ for y in range(H):
             glow = max(0, 1 - math.hypot(x-390, y-210)/330)
             r += int(42*glow); g += int(15*glow); b += int(5*glow)
         p[x,y] = (min(r,90), min(g,80), min(b,120))
-d = ImageDraw.Draw(img, 'RGBA')
+# Draw geometry at double resolution, then downsample for clean paper edges.
+img = img.resize((W*2, H*2), Image.Resampling.BICUBIC)
+class SmoothDraw:
+    def __init__(self, image):
+        self.draw = ImageDraw.Draw(image, 'RGBA')
+    def __getattr__(self, name):
+        def scaled(coords, *args, **kwargs):
+            if coords and isinstance(coords[0], (tuple,list)):
+                coords = [(x*2,y*2) for x,y in coords]
+            else:
+                coords = tuple(v*2 for v in coords)
+            if 'width' in kwargs:
+                kwargs['width'] *= 2
+            return getattr(self.draw, name)(coords, *args, **kwargs)
+        return scaled
+d = SmoothDraw(img)
 
 # Nebula and stars: sparse so the dragon remains the focal point.
 for i in range(125):
@@ -126,4 +141,4 @@ d.line((325,680,449,680), fill=(255,126,63,80), width=3)
 
 # Downsample-free final polish: a narrow dark border keeps thumbnail silhouette clean.
 d.rectangle((10,10,W-11,H-11), outline=(255,213,120,150), width=3)
-img.save('entry.png', format='PNG', optimize=True, compress_level=9)
+img.resize((W, H), Image.Resampling.LANCZOS).save('entry.png', format='PNG', optimize=True, compress_level=9)
